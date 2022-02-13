@@ -26,7 +26,7 @@ func setEnv(vars map[string]string) {
 	}
 }
 
-func getTestServer(t *testing.T, token string, owner string, repo string, pr string, respUrl string, wantBody string) *httptest.Server {
+func getTestServer(t *testing.T, token string, owner string, repo string, pr string, respUrl string, wantBody string, rawBody []byte) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if auth := r.Header.Get("Authorization"); auth != "token "+token {
 			t.Errorf("Unexpected Authorization header: %q", auth)
@@ -42,8 +42,12 @@ func getTestServer(t *testing.T, token string, owner string, repo string, pr str
 			}
 			w.WriteHeader(http.StatusCreated)
 
-			_ = json.NewEncoder(w).Encode(&CommentResponse{HtmlUrl: respUrl})
-			w.Header().Add("Content-Type", "application/json")
+			if rawBody != nil {
+				w.Write(rawBody)
+			} else {
+				_ = json.NewEncoder(w).Encode(&CommentResponse{HtmlUrl: respUrl})
+				w.Header().Add("Content-Type", "application/json")
+			}
 		} else {
 			t.Errorf("Unexpected path: %q", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
@@ -86,7 +90,7 @@ func TestInlineTemplate(t *testing.T) {
 	wantBody := "this is a test"
 	wantUrl := "http://success"
 
-	server := getTestServer(t, token, owner, repo, pr, wantUrl, wantBody)
+	server := getTestServer(t, token, owner, repo, pr, wantUrl, wantBody, nil)
 	defer server.Close()
 
 	setEnv(map[string]string{
@@ -117,7 +121,7 @@ func TestFileTemplate(t *testing.T) {
 	wantBody := "read from the environment\nread from a file"
 	wantUrl := "http://success2"
 
-	server := getTestServer(t, token, owner, repo, pr, wantUrl, wantBody)
+	server := getTestServer(t, token, owner, repo, pr, wantUrl, wantBody, nil)
 	defer server.Close()
 
 	setEnv(map[string]string{
@@ -153,5 +157,33 @@ func TestInvalidTemplateFile(t *testing.T) {
 	_, err := postComment()
 	if err == nil {
 		t.Error("Expected an error")
+	}
+}
+
+func TestGiteaJsonDecodeError(t *testing.T) {
+	unsetAll()
+
+	owner := "testOnwer"
+	repo := "testRepo"
+	pr := "123"
+	token := "s3crett0ken"
+	wantBody := "this is a test"
+
+	server := getTestServer(t, token, owner, repo, pr, "", wantBody, []byte("this is not josn"))
+	defer server.Close()
+
+	setEnv(map[string]string{
+		"PLUGIN_URL":         server.URL,
+		"PLUGIN_TOKEN":       token,
+		"DRONE_REPO_OWNER":   owner,
+		"DRONE_REPO_NAME":    repo,
+		"DRONE_PULL_REQUEST": pr,
+		"MY_TEST_VAR":        wantBody,
+		"PLUGIN_BODY":        `{{ readEnv "MY_TEST_VAR" }}`,
+	})
+
+	_, err := postComment()
+	if err == nil {
+		t.Error("Expected an error but got nil")
 	}
 }
