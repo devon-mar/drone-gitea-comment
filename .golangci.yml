@@ -2,3 +2,8 @@
 linters:
   enable:
     - gofumpt
+
+linters-settings:
+  errcheck:
+    exclude-functions:
+      - (net/http.ResponseWriter).Write
