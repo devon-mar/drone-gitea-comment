@@ -11,9 +11,7 @@ import (
 	"time"
 )
 
-var (
-	template_funcs = template.FuncMap{"readEnv": os.Getenv, "readFile": readFile}
-)
+var template_funcs = template.FuncMap{"readEnv": os.Getenv, "readFile": readFile}
 
 type CommentPayload struct {
 	Body string `json:"body"`
@@ -117,7 +115,9 @@ func postComment() (string, error) {
 
 	defer resp.Body.Close()
 	cr := CommentResponse{}
-	json.NewDecoder(resp.Body).Decode(&cr)
+	if err := json.NewDecoder(resp.Body).Decode(&cr); err != nil {
+		return "", err
+	}
 
 	return cr.HtmlUrl, nil
 }

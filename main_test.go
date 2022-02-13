@@ -36,13 +36,13 @@ func getTestServer(t *testing.T, token string, owner string, repo string, pr str
 			w.WriteHeader(http.StatusUnprocessableEntity)
 		} else if r.URL.Path == fmt.Sprintf("/api/v1/repos/%s/%s/issues/%s/comments", owner, repo, pr) {
 			cp := CommentPayload{}
-			json.NewDecoder(r.Body).Decode(&cp)
+			_ = json.NewDecoder(r.Body).Decode(&cp)
 			if cp.Body != wantBody {
 				t.Errorf("Wanted body %q but got %q", wantBody, cp.Body)
 			}
 			w.WriteHeader(http.StatusCreated)
 
-			json.NewEncoder(w).Encode(&CommentResponse{HtmlUrl: respUrl})
+			_ = json.NewEncoder(w).Encode(&CommentResponse{HtmlUrl: respUrl})
 			w.Header().Add("Content-Type", "application/json")
 		} else {
 			t.Errorf("Unexpected path: %q", r.URL.Path)
