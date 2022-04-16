@@ -70,7 +70,9 @@ func templatePayload() (*bytes.Buffer, error) {
 	}
 
 	body_buf := &bytes.Buffer{}
-	err = json.NewEncoder(body_buf).Encode(CommentPayload{Body: buf.String()})
+	encoder := json.NewEncoder(body_buf)
+	encoder.SetEscapeHTML(false)
+	err = encoder.Encode(CommentPayload{Body: buf.String()})
 	if err != nil {
 		return nil, err
 	}
